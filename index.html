@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Mapa Santa Cruz</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            background: #eef2f7;
+        }
+
+        /* PANEL LATERAL */
+        #sidebar {
+            width: 320px;
+            background: #ffffff;
+            border-right: 1px solid #d0d7de;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        #sidebar h2 {
+            margin: 0 0 15px 0;
+            font-size: 22px;
+            color: #333;
+        }
+
+        #sidebar li {
+            background: #f8f9fa;
+            margin-bottom: 8px;
+            padding: 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        #sidebar li:hover {
+            background: #dce9ff;
+            border-color: #7aa8ff;
+        }
+
+        #info-municipio {
+            background: #ffffff;
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+            height: 100vh !important;
+            border-left: 1px solid #ccc;
+        }
+
+        /* MODAL ANALISIS (CORREGIDO) */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 900;
+            padding-top: 90px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.55);
+
+            /* 🔥 Esto evita que tape el footer y la leyenda */
+            pointer-events: none;
+        }
+
+        .modal.mostrar {
+            display: block !important;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: white;
+            margin: auto;
+            padding: 30px;
+            width: 65%;
+            border-radius: 12px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 25px rgba(0,0,0,0.25);
+            line-height: 1.6;
+        }
+
+        .cerrar {
+            float: right;
+            font-size: 32px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- PANEL SUPERIOR -->
+<div style="
+    position: absolute;
+    top: 90px;
+    left: 350px;
+    z-index: 1000;
+    background: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+"></div>
+</div>
+
+<!-- PANEL LATERAL -->
+<div id="sidebar">
+    <h2>Resultados por municipio 2021</h2>
+    <ul id="lista-munis"></ul>
+
+    <div id="info-municipio">
+        <strong>Seleccione un municipio</strong>
+    </div>
+</div>
+
+<!-- MAPA -->
+<div id="map"></div>
+
+<!-- MODAL -->
+<div id="modalAnalisis" class="modal">
+    <div class="modal-content">
+        <span id="cerrarModal" class="cerrar">&times;</span>
+        <h2 id="modalTitulo"></h2>
+        <div id="modalTexto"></div>
+    </div>
+</div>
+
+<!-- Leaflet -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+<!-- TU ARCHIVO DE DATOS -->
+<script src="datos2021.js"></script>
+
+<script>
+/* ============================================================
+   🔵 ANALISIS IMPORTADO DESDE WORD
+   ============================================================ */
+
+const analisisMunicipios = {
+
+"Santa Cruz de La Sierra": `
+<p>Fernandez ganó con minoría simple (35.41% de los votos), aprovechando la división del voto opositor que se polarizó entre su candidatura y la de Roly Aguilera y Gary Añez.
+UCS tiene una estructura política fiel y probada en la ciudad, su campaña de reelección se centrará en mostrar la ejecución de proyectos y la continuidad administrativa, aunque la percepción de avance en grandes problemas urbanos (tráfico, planificación) es mixta.
+La capacidad de Jhonny para negociar y asegurar el control de la directiva del Concejo Municipal (como se observa con el actual presidente, Juan Carlos Medrano), incluso con alianzas flexibles (que han incluido en el pasado a sectores ajenos a su línea tradicional), le da gobernabilidad y la capacidad de aprobar su presupuesto y proyectos.</p>
+<ul>
+<li>El escenario es propicio para el surgimiento de un candidato outsider o de una nueva coalición opositora fuerte. El descontento generalizado con la política tradicional y los problemas no resueltos (caos vehicular, mala planificación urbana, inseguridad) son la plataforma perfecta para un candidato con un perfil técnico, empresarial o cívico que no haya ocupado cargos electivos previamente</li>
+<li>La clave para el éxito de esta "tercera vía" es su capacidad para unificar detrás de sí a los sectores de la sociedad civil y a aquellos políticos de Creemos o antiguos Demócratas que busquen una renovación. Si hay varios candidatos "nuevos", se repetirá la dispersión de votos de 2021, beneficiando a Jhonny Fernández. La victoria o derrota de Jhonny Fernández dependerá casi enteramente de si el resto del espectro opositor logra superar sus diferencias y unificarse bajo un único estandarte creíble. Si no lo logran, la fragmentación actual será el mejor aliado del actual Alcalde para conseguir la reelección con un porcentaje de votos similar al de 2021.
+</li>
+</ul>
+`,
+
+"La Guardia":`
+<p>La Guardia fue uno de los municipios donde el Movimiento al Socialismo (MAS-IPSP) logró consolidar su victoria con Rufino Correa Maldonado (MAS-IPSP). La victoria del MAS en La Guardia, uno de los municipios con mayor crecimiento demográfico de Bolivia, confirma la fuerte presencia de su base electoral en el área metropolitana, especialmente entre los nuevos asentamientos y el sector periurbano, a pesar de que el departamento en general votó por la oposición (Creemos) para la Gobernación. El OEP reportó una participación superior al 70%, lo que denota un alto interés en la elección local.</p>
+<ul>
+<li>en La Guardia la oposición (que pudo incluir fuerzas como Creemos o alianzas locales) fue minoritaria en 2021. Para tener una opción de victoria en 2026, las fuerzas anti-MAS en La Guardia deben: Unificarse: Presentar un único candidato que pueda concentrar el voto de la minoría opositora y del descontento ciudadano por problemas de gestión.</li>
+<li>Tendencia favorable al MAS u otro partido que busque esta parte del electorado </li>
+</ul>
+`,
+
+"El Torno": `
+<p>El Torno es un municipio conocido por su fuerte vocación agrícola y su población predominantemente rural o semiurbana, lo que lo convierte en un bastión tradicionalmente más afín al Movimiento al Socialismo (MAS) que otros municipios metropolitanos.</p>
+<ul>
+<li>La proyección es que El Torno seguirá siendo un desafío muy grande para la oposición el Escenario Más Probable, si logra unirse o si una de las facciones logra imponer su candidato sin una división interna grave, la victoria del MAS es altamente probable debido a su base electoral histórica en el municipio. La Alcaldía se convertiría en un bastión de la facción ganadora. Un escenario de victoria opositora solo podría materializarse si Hay una doble postulación del MAS (dos candidatos de las facciones en pugna). La oposición logra un candidato de unidad con un fuerte respaldo en el sector productivo y agrario, capitalizando así el descontento por problemas de gestión local</li>
+<li>La oposición anti-MAS en El Torno es tradicionalmente débil y fragmentada. Para 2026, si buscan competir se debe Encontrar un candidato local con arraigo comunitario y credibilidad productiva, no necesariamente un político tradicional de la capital.
+Unificarse en una sola sigla para intentar capturar el voto del descontento y el voto que pueda dispersarse por la división del MAS.</li>
+</ul>
+
+`,
+
+"Warnes": `
+<p>Históricamente, ha sido un bastión del MAS, pero la oposición (ahora ligada a Creemos) ha logrado victorias y desafíos importantes. La elección de 2021 en Warnes fue una de las más disputadas del departamento dando Ganador a Juan Carlos Urrelo que es un exfuncionario municipal. Su victoria fue significativa porque recuperó el municipio para el MAS, un territorio que previamente había sido administrado por el propio Urrelo, quien fue alcalde por el MAS entre 2010 y 2015.</p>
+<ul>
+<li>Warnes ha sido un municipio que ha cambiado de manos en el pasado, lo que indica que no es un bastión inquebrantable para ninguna fuerza política, a diferencia de El Torno. El voto está altamente polarizado entre el MAS y la oposición cruceña (anteriormente liderada por fuerzas como Unidos, y actualmente por Creemos, aunque esta alianza esté desgastada).</li>
+<li>La oposición debe aprender de 2021 y buscar un candidato único y fuerte con arraigo en el municipio para capitalizar cualquier descontento con la gestión actual o la división interna del MAS.</li>
+</ul>
+`,
+
+"Montero": `
+<p>Capital provincial más grande de Santa Cruz y un centro neurálgico del sector agroindustrial y azucarero. Su política refleja una intensa disputa entre el MAS, que tiene una base histórica, y las fuerzas de oposición cívico-regionales. El 2021 reafirmó la posición de Montero como un bastión del MAS, aunque el margen de victoria en la capital fue menos abrumador que en las áreas rurales circundantes el Ganador Regys Medina P
+<ul>
+<li>Si el Alcalde Medina se alinea a una facción, la otra podría promover un candidato disidente, lo que casi garantizaría una dispersión del voto del MAS y crearía una oportunidad de oro para la oposición.
+</li>
+<li>La única vía creíble para un cambio de signo político en Montero es la división formal del MAS en dos candidaturas municipales separadas. Esto permitiría a un candidato de oposición, incluso con el 35-40% del voto, ganar la Alcaldía por minoría simple.</li>
+</ul>
+`,
+
+"Portachuelo":`
+<p> El municipio presenta una dinámica política y electoral distinta a la del área metropolitana de Santa Cruz, La elección de 2021 fue ganada por una agrupación ciudadana, lo que subraya la importancia de los liderazgos locales en Portachuelo dando Ganador a Juan Carlos "Pichón" Urquidi. 
+La victoria de SOL sobre el Movimiento al Socialismo y otras fuerzas opositoras a nivel nacional confirma que el voto en Portachuelo es profundamente municipalista y personalista. El factor crucial no fue la ideología nacional, sino el arraigo y el perfil de liderazgo de Urquidi. Pero Tras el fallecimiento, asumió la suplencia la Concejala de la Agrupación SOL, Lic. María Elena Hurtado, la Alcaldesa interina.
+</p>
+<ul>
+<li>Hurtado Es una posible candidata a la reelección si logra consolidar su gestión en el periodo restante. Sin embargo, la ausencia de Urquidi abre el espacio para que nuevos líderes dentro o fuera de SOL busquen la nominación, creando una posible fragmentación interna. Y se abre nuevos espacios para que los partidos grandes busquen candidatos que tenga apoyo del municipio. </li>
+
+`,
+
+"Cotoca": `
+<p>El municipio que también forma parte del área metropolitana, La elección de 2021 en Cotoca fue ganada por una sigla que tiene una presencia nacional, pero que logró una fuerte conexión local dando Ganador a Raúl Alvis Claros, demostrando que el electorado de Cotoca busca alternativas y apoya a líderes locales con una visión propia.
+La principal amenaza para el gobierno municipal es la ineficiencia en la gestión del crecimiento urbano y la relación de los casos de sobreprecio y corrupcion. Si los problemas de servicios básicos superan la capacidad de respuesta, el voto de castigo podría beneficiar al cualquier partido nuevo, que tiene una base importante para captar el descontento.
+</p>
+<li>La tendencia más fuerte en Cotoca es el voto de alternativa. El electorado demostró en 2021 que está dispuesto a apoyar a un líder local fuerte, Se trata de un electorado que está cansado del MAS (que sigue siendo la principal oposición local) y desconfía de los partidos hegemónicos de Santa Cruz (Creemos/UCS), prefiriendo un liderazgo con fuerte identidad cívico-religiosa y local. El próximo outsider en Cotoca será, por definición, un líder de la protesta local contra la falta de servicios, corrupción, y otros temas que utilizará una sigla ciudadana o un partido menor para competir contra el MAS y el MTS</li>
+</ul>
+`,
+
+"Buena Vista": `
+ <p>El municipio presenta una dinámica política muy particular, marcada por su fuerte vocación turística, productiva y su identidad cultural ligada al Parque Nacional Amboró. El resultado de 2021 fue una victoria para un líder local, lo que subraya la importancia de los liderazgos con arraigo en esta región dando Ganador a Teodoro Gonzales Saucedo con el MAS-IPSP, La oposición anti-MAS en Buena Vista es fuerte, aunque minoritaria. Buscará activamente capitalizar cualquier desgaste en la gestión y la división interna del MAS. La principal crítica se centrará en la falta de autonomía municipal frente al gobierno central.</p>
+<li>Si el MAS se unifica detrás del actual alcalde, seguirá siendo favorito debido a su sólida base.</li>
+</ul>
+`,
+
+"Pailón": `
+<p> Municipio estratégico en la provincia Chiquitos (al este del departamento) con una fuerte vocación agroindustrial y de granos. La victoria del MAS en Pailón demostró la efectividad del partido para postular a líderes locales que conectan con la base productiva y social dando Ganador a Hagapito Castro
+Si el MAS se divide (con Castro alineado a una facción y un retador alineado a la otra), la oposición regional tiene una oportunidad de oro para ganar con una minoría de votos.
+El reto principal es el mantenimiento de caminos rurales y carreteras para asegurar la salida de los granos y la producción agrícola (soya, maíz). La eficiencia en la gestión vial es el termómetro del éxito del alcalde.
+</p>
+</ul>
+`,
+
+"San Julián": `
+<p>Municipio con fuerte base de colonizadores y organizaciones sociales. Bastión histórico del MAS. Ganó Willi Calderón Coca en 2021.</p>
+<ul>
+<li>El principal desafío es mantener la unidad interna y garantizar obras de infraestructura, clave para la producción.</li>
+<li>La oposición concentra pocos votos en áreas urbanas y productivas, mientras las zonas rurales permanecen fieles al MAS.</li>
+</ul>
+`,
+
+"Concepción": `
+<p>El municipio históricamente ha mostrado una tendencia a votar por fuerzas opositoras al MAS, ligadas al sentimiento regional cruceño. La victoria de Creemos demostró que la fuerza opositora logró conectar con la identidad cultural y turística de Concepción. El Alcalde Vega debe lidiar con la fractura del partido Creemos a nivel departamental (el conflicto Camacho vs. Aguilera). Su gestión debe mantenerse estable y enfocada en lo local para evitar que la crisis departamental debilite su gobierno.
+El Alcalde Vega busca la reelección, será el favorito. Su continuidad dependerá de si logra mantener la unidad del sector opositor local bajo la bandera de Creemos (o de una alianza cívica que lo apoye) y si su gestión es percibida como exitosa en turismo y servicios.
+Hay que resaltar la mínima diferencia entre los votos entre Creemos y PC. 
+</p>
+</ul>
+`,
+
+"Cuatro Cañadas": `
+<p>Municipio productor de granos, con población mayoritariamente colonizadora. El MAS ganó con Hugo Gutiérrez Vique.</p>
+<ul>
+<li>La única amenaza para el MAS es su propia división interna.</li>
+<li>Una candidatura disidente abriría la única opción para un outsider u oposición.</li>
+</ul>
+`,
+
+"Yapacaní": `
+<p>Yapacaní se autodenomina la "pequeña Bolivia" por su población altamente intercultural, compuesta por migrantes del occidente (colonizadores), pueblos indígenas (Yuracaré, Mojeño) y productores agrícolas. Es un centro de poder del MAS y un polo económico agropecuario. La victoria de Juan Carlos Valles Mamani en 2021 consolidó el control del partido en este municipio, que es vital para la base cocalera y las organizaciones sociales agrarias.
+El escenario político en Yapacaní es de máxima volatilidad, a pesar de ser un bastión del MAS. el Alcalde Juan Carlos Valles está siendo proclamado como candidato para la reelección por los "Interculturales", pero que el ampliado desechó usar la sigla del MAS.
+La oposición tradicional (Creemos, MTS) es marginal en Yapacaní.
+</p>
+`, 
+"Santa Rosa del Sara": `
+<p>Municipio con una fuerte base productiva, dominada por la agricultura y la ganadería. Políticamente, tiene una dinámica de voto dividido, lo que convierte la Alcaldía en un objetivo crucial tanto para el MAS como para la oposición regional. En 2021 gano el MAS, con Rimber Barrón Reyna. 
+En Santa Rosa es menos hegemónica. Su victoria es más sensible a la aparición de un candidato opositor unificado. La oposición (Creemos, agrupaciones regionales) tiene una oportunidad real en Santa Rosa si logra unificar su voto. Necesita un candidato con perfil productivo (un ex-ganadero o agricultor) que pueda presentarse como el garante de los intereses económicos del municipio y capitalizar el descontento de la clase media y el sector productivo.
+Si la oposición se fragmenta entre dos o más candidatos (por ejemplo, Creemos y una agrupación local), el MAS u otro partido con tendencias similares retendrá la Alcaldía por minoría simple, incluso si su candidato solo obtiene el 35-40% de los votos.
+
+</p>
+<ul>
+`,
+"Puerto Suárez":` 
+<p> Municipio estratégico por ser un puerto seco y un centro de actividad logística y comercial, lo que le otorga una dinámica política muy particular. La elección de 2021 fue una contienda muy ajustada y fragmentada, con la victoria de la principal fuerza opositora del departamento: dando Ganador a Mauricio Montero Yorge de CREEMOS.
+La victoria de Creemos con solo el 27.15% de los votos demuestra que el voto estuvo extremadamente fragmentado. Montero ganó capitalizando el voto anti-MAS y superando por un margen estrecho a los demás contendientes, lo que subraya la vulnerabilidad de su gestión. </p>
+
+El ganador será probablemente el que logre el porcentaje más alto, por debajo del 30%. La clave será la capacidad del MAS de unificarse y la incapacidad de la oposición de aliarse.Si Creemos y otras agrupaciones logran la unidad total, la oposición puede retener la Alcaldía. De lo contrario, la fragmentación actual (donde el MAS es la única estructura grande) le da la ventaja al partido de gobierno.
+</ul>
+`, 
+"Charagua":`
+<p>o se rige por el sistema político tradicional. Charagua es un municipio pionero en Bolivia al haber consolidado la Autonomía Indígena Originario Campesina (AIOC). El proceso electoral en Charagua se realiza mediante normas y procedimientos propios (usos y costumbres) del pueblo guaraní, lo que significa que no eligieron un Alcalde de un partido político en 2021, sino a las autoridades de su Gobierno Autónomo Guaraní Charagua Iyambae.
+El proceso confirmó la vigencia de la autonomía y el liderazgo de las Capitanías Guaraníes sobre la gestión territorial. Las autoridades son elegidas en base a liderazgos comunitarios y consensos internos, aunque el MAS y la oposición nacional siempre intentan influir en estos procesos.
+La tendencia principal es la defensa de la autonomía frente a los partidos nacionales. Sin embargo, los líderes de la autonomía a menudo tienen afinidades políticas privadas con el MAS o con la oposición cívica, lo que influye en sus decisiones públicas.</p>
+<Li>Si la gestión del EDE es percibida como ineficiente o corrupta por las comunidades, el descontento se canaliza a través de los mecanismos internos del estatuto (como la revocatoria o la protesta de las Capitanías), no a través de una campaña electoral de partido.</Li>
+</ul>
+`, 
+"Roboré":`
+<p>Municipio con un fuerte compromiso cívico y una economía ligada a la conservación, el turismo y la logística. Históricamente, es un bastión de la oposición a los partidos centralistas, reflejando el espíritu regionalista de la Chiquitanía. La elección de 2021 confirmó la tendencia opositora de Roboré, dando Ganador a José Eduardo Díaz Ruiz con Agrupación Ciudadana Todos por Roboré (TPR), El éxito de Lalo Díaz se basó en su conexión directa con las bases sociales y turísticas del municipio. La tendencia más fuerte es el predominio del liderazgo local y cívico, lo que favorece a agrupaciones como TPR. El factor crucial es el candidato, más que la sigla. </p>
+<Li>La contienda será una lucha por la unificación del voto opositor. Si Creemos, en lugar de competir, apoya a Lalo Díaz (TPR), la victoria opositora está asegurada. Si compiten, el MAS tiene una ventana de oportunidad, aunque consideramos que es casi nula</Li>
+`,
+"Vallegrande":`
+<p>La elección de 2021 fue una muestra clara de la fuerza del localismo en la capital provincial dando Ganador a Ignacio Morón con la Agrupación Ciudadana Vallegrande Primero y Transparente (VPT). La tendencia más fuerte en 2026 será nuevamente la búsqueda de una opción local. El voto no irá automáticamente a la oposición departamental (Creemos), sino al candidato que mejor represente la identidad de los valles. </p>
+<Li>Si el voto localista se divide entre VPT y otros outsiders, la victoria de CREEMOS por minoría simple se vuelve altamente probable, ya que su base social es grande y disciplanada </Li>
+`,
+"Mineros":`
+<p/>Centro agroindustrial fundamental, conocido por la producción de caña de azúcar y arroz. Su dinámica política es fascinante por su tendencia a buscar una "tercera vía". Gano en 2021 Salvador Torrejón Oropeza con UCS.</p>
+<Li>El Escenario Más Probable es que UCS Retiene Si la gestión de Salvador es evaluada como exitosa por el sector productivo y logra una buena coordinación con la capital, UCS es la opción más fuerte para la reelección o para nominar a su sucesor.  Si la lucha interna entre la oposición cruceña (UCS vs. Creemos) se intensifica, el MAS tiene una alta probabilidad de alzarse con la victoria por el margen estrecho que genera la división del voto productivo y cívico. </Li>
+`,
+"San Ignacio de Velasco":`
+<p>El centro urbano más importante de la Chiquitanía Oriental después de Puerto Suárez. San Ignacio de Velasco es vital por su gran extensión territorial, su economía maderera, ganadera, turística y su fuerte identidad cívico-religiosa (Misiones Jesuíticas). a victoria de Fuerza y Esperanza sobre el MAS y sobre las grandes siglas opositoras (Creemos/UNIDOS) indica que el municipio buscó un líder con arraigo local que canalizara el voto anti-MAS, pero que no estuviera ligado a la crisis o el desgaste de la política departamental. Esto convierte a Carlos Ruddy Dorado Flores en un líder cívico local que logró unificar el descontento.
+La tendencia dominante en 2026 será nuevamente la preferencia por la opción localista. El MAS solo gana si el voto opositor se fragmenta en más de tres opciones viables.</p>
+<Li>El escenario Más Probable  es la Retención Local Si la agrupación de Dorado se mantiene unida y su gestión es bien evaluada, tiene la mejor opción para retener el municipio y Si el voto anti-MAS se divide entre tres o más candidatos el actual alcalde, el candidato de Creemos, y un nuevo outsider cívico. </Li>
+`, 
+"San Antonio de Lomerío":`
+<p> Municipio de población predominantemente indígena (Chiquitano y Ayoreo). Su política se define por la defensa del territorio, la gestión de recursos naturales y el equilibrio entre su identidad cultural y las fuerzas políticas departamentales. Gano en 2021 Ángel Sumami Parapaino con CREEMOS,  Esta victoria (con un 51.98% de los votos) es clave porque demuestra que el frente cívico-regional (CREEMOS) logró unificar el voto indígena y regionalista en torno a un candidato propio con fuerte arraigo local. Sumami, como líder indígena dentro de CREEMOS, representa el éxito de la oposición al incorporar los liderazgos comunitarios para contrarrestar la tradicional influencia del MAS en el campo.</p>
+<Li>La contienda se centrará entre el liderazgo indígena de Ángel Sumami Parapaino (si se presenta a la reelección) y el candidato indígena del MAS u otro partido con la misma tendencia . El ganador será aquel que logre movilizar mejor a las comunidades. La capacidad de CREEMOS es de mantener unido el voto opositor y de respaldar firmemente a su Alcalde será decisiva. Una gestión exitosa en la entrega de proyectos es la mejor defensa contra la campaña del MAS.</Li>
+`, 
+"San Javier":`
+<p> Municipio histórico, parte del circuito de las Misiones Jesuíticas. Su economía se basa en la ganadería y el turismo. Políticamente, el hecho de que el MAS-IPSP haya ganado en 2021, a pesar de la fuerte tradición cívica de la Chiquitanía, subraya la capacidad del partido de gobierno para capitalizar la división opositora y promover liderazgos locales, La victoria de Dany Añez para el MAS no solo le dio al partido el control de un municipio clave, sino que también demostró que, al igual que en otras regiones, la fragmentación de la oposición (Creemos, agrupaciones locales) fue el factor decisivo. El MAS ganó al presentar un candidato local fuerte que movilizó a su base, mientras el voto opositor se dispersó. Si la oposición cívica logra unificarse en torno a un candidato fuerte y la gestión del Alcalde Añez sufre un desgaste natural, la oposición es la favorita para recuperar el municipio por mayoría simple.</p>
+<Li>La base del MAS en San Javier es sólida y disciplinada. El partido mantendrá su estrategia de movilizar a sus bases sociales y agrícolas, garantizando un piso electoral alto (cerca del 30-35%).</Li>
+`, 
+"El Puente":`
+<p>La victoria de Proofel Huaylla Arteaga por el MAS-IPSP en El Puente es un dato de alto valor político, ya que significa que el partido de gobierno controló un municipio clave en la estratégica Provincia Guarayos, una zona de intensa producción agroindustrial y ganadera, Es una victoria típica de minoría simple, conseguida porque el voto opositor (entre Creemos, agrupaciones locales y otros) se dividió en varios frentes, permitiendo al MAS superar a todos individualmente con su voto duro. La Alcaldía debe fungio como mediador en las disputas por el uso de la tierra entre la base social del MAS (colonizadores/comunarios) y los grandes productores y ganaderos, que a menudo son la base de la oposición.</p>
+<Li>el MAS u otro similar  tiene una alta probabilidad de retener el municipio por minoría simple.</Li>
+`, 
+"San Ramón":`
+<p> Con una economía que gira en torno a la ganadería y la agricultura, La victoria del MAS fue el resultado directo de la dispersión del voto opositor (Creemos, agrupaciones cívicas, otros locales). Germán Sánchez, como líder impulsado por el MAS, logró movilizar su base social (principalmente en las comunidades campesinas y colonizadoras) para ganar con un porcentaje que probablemente fue de minoría simple. Esta victoria le da al MAS un control estratégico en la zona ganadera y forestal de Ñuflo de Chávez. La gestión del Alcalde Sánchez (MAS) se beneficia de la conexión con el nivel central, pero debe demostrar eficiencia en una región que tradicionalmente mira con recelo al partido de gobierno. El MAS tiene la mejor probabilidad de retener el municipio por minoría simple.</p>
+`, 
+"Urubichá":`
+<p>El corazón cultural del pueblo Guarayos, con una economía ligada a la producción forestal, agrícola y el turismo cultural. Políticamente, el municipio ha mostrado una tendencia a alinearse con fuerzas regionales que defienden la identidad cruceña y la autonomía, a pesar de la fuerte presencia histórica del MAS en la provincia. La victoria de UNIDOS con una candidata local demuestra que el frente opositor regional logró canalizar tanto el voto anti-MAS como el voto de identidad cultural Guarayos. Carmen Aida Aguilera Suárez, como figura local, proporcionó el arraigo necesario para que UNIDOS triunfara sobre la base social del MAS. Es una victoria que afirma la tendencia regionalista. El MAS es la principal fuerza opositora en Urubichá. Su estrategia en 2026 será Impulsar un Líder Indígena Propio como Nombrar a un líder Guarayos de las comunidades rurales para dividir el voto indígena que actualmente apoya a UNIDOS. Y Ofrecer Recursos Centrales con la promesa de inversión directa del gobierno central como palanca contra la gestión de la oposición.</p>
+<Li>La gestión de la Alcaldesa Aguilera es percibida como exitosa en la entrega de obras y la promoción cultural, UNIDOS tiene la mejor opción para la reelección o para nombrar a su sucesor.</Li>
+`, 
+"Porongo":`
+<p>Municipio metropolitano que simboliza la postura más cívica y anti-MAS de Santa Cruz. La victoria de una agrupación ciudadana en 2021 demuestra que el electorado, aunque firmemente opositor, prioriza el liderazgo local y la figura de un Alcalde con arraigo, por encima de las siglas partidarias grandes. La principal competencia en 2026 será entre el actual Alcalde (Neptaly Mendoza) y el candidato que impulse la alianza opositora departamental (CREEMOS o un nuevo frente cívico) la gestión del Alcalde Mendoza sufre un desgaste significativo y la oposición departamental (CREEMOS) logra presentar a un candidato fuerte y de consenso con buen arraigo local, el voto cívico podría volver a unirse bajo la sigla de la alianza departamental.</p>
+`, 
+"Samaipata":`
+<p>Municipio valluno con economía basada en turismo, pequeños productores agrícolas y una comunidad dinámica que mezcla residentes rurales y urbanos. En 2021 resultó electo como alcalde Eustaquio Casilla Fermin, por MAS-IPSP lo que marca una vuelta del electorado hacia el oficialismo, probablemente impulsada por la expectativa de mayor apoyo estatal en infraestructura y proyectos de desarrollo rural urbano. Este resultado sugiere que, al menos en Samaipata, el candidato y su promesa de gestión concreta pesaron más que las viejas preferencias por liderazgos independientes.</p> <li>En la próxima contienda, el oficialismo parte con ventaja por control de estructura. La oposición tendría que presentar un candidato con fuerte arraigo comunitario para competir seriamente.</li>
+`, 
+"Camiri":`
+<p>Ciudad petrolera con gran tradición obrera y estructura sindical importante. En 2021 fue electo alcalde David Anzaldo Anzaldo, de Comunidad Ciudadana  una señal de que los votantes optaron por una opción opositora moderada, quizá como reacción a años de gobierno nacionalista. El triunfo expresa un deseo de alternancia y una búsqueda de renovación institucional a nivel local, con expectativas de mayor transparencia y autonomía municipal.</p> <li>Si la oposición conserva unidad y presenta continuidad en gestión local, tiene buena posibilidad de mantener la alcaldía. El oficialismo debería fortalecer su presencia para revertirla.</li>
+`,
+"Comarapa":`
+<p>Municipio del valle cruceño con economía agrícola y un electorado urbanorural mixto. En 2021 resultó electo Jhonny Vocal Andrade por MAS-IPSP, lo que indica un retorno del oficialismo, apoyado probablemente por el voto rural y estructuras de base. Para Comarapa, la tendencia parece inclinarse hacia la continuidad oficialista, especialmente si la oposición sigue fragmentada.</p> <li>La oposición necesita consolidar un liderazgo fuerte en zonas urbanas para tener oportunidad de disputar la alcaldía en la próxima elección. Si no, MAS tiene ventaja.</li>
+`,
+"Mairana":`
+<p>Pequeño municipio del valle, con economía agrícola-ganadera. En 2021 fue elegida como alcaldesa Ana Mendoza Aguilera por MAS-IPSP, mostrando un apoyo claro del electorado hacia proyectos vinculados a desarrollo rural y beneficios estatales. La elección confirma que en Mairana el oficialismo sigue teniendo una base sólida, probablemente gracias a su presencia en el área rural y promesas de infraestructura y servicios básicos.</p> <li>Para que la oposición compita con chances, debe presentar una propuesta concreta orientada a diversificación económica y servicios comunitarios. Sin eso, la continuidad del MAS parece segura.</li>
+`,
+"Pucará":`
+<p>Municipio pequeño con predominancia rural. En 2021 ganó Ovidio Terrazas Rojas (MAS-IPSP), lo que refleja la preferencia del electorado rural por el oficialismo respaldado por presencia estatal recurrente. Esta preferencia puede estar ligada a expectativas de apoyo productivo, subsidios, y programas sociales.</p> <li>El desafío opositor será alto, pues se requiere un liderazgo local muy fuerte — y una propuesta atractiva para el sector rural — para disputar la alcaldía en serio.</li>
+`,
+"Agustín Saavedra":`
+<p>Municipio del norte cruceño, con una economía diversificada entre agricultura y comercio regional. En 2021 fue electo Roly Rolando Oño Añez, del MAS-IPSP, lo que sugiere que las políticas estatales y las promesas de desarrollo influyeron en el voto. El oficialismo se consolidó preferencialmente en zonas con base rural y pequeña agricultura. La inclinación hacia el MAS resalta la importancia de los apoyos estatales en municipios pequeños.</p> <li>La oposición debe trabajar en propuestas de desarrollo productivo y diversificación económica para tener posibilidad de revertir ese dominio.</li>
+`,
+"Colpa Bélgica":`
+<p>Municipio del norte cruceño con reciente expansión poblacional y desarrollo agrícola. En 2021 resultó electa alcaldesa Sandra Muñoz Gutiérrez, por la agrupación local Somos Colpa Bélgica — lo que indica una clara preferencia por liderazgo local independiente del oficialismo nacional. Esto refleja el peso de las identidades municipales y la desconfianza hacia los partidos nacionales en zonas emergentes.</p> <li>Si este liderazgo local mantiene su conexión con la comunidad, la continuidad es probable. El oficialismo tendría que presentar un candidato con raíces locales fuertes para competir de verdad.</li>
+`,
+"Lagunillas":`
+<p>Municipio chaqueño con fuerte identidad regional y presencia de comunidades rurales y tradicionales. En 2021 fue electo Héctor Contreras Alvarez, de la agrupación ASIP, lo que muestra que este municipio apuesta por liderazgos propios y locales, alejados del oficialismo nacional — tendencia común en zonas con arraigo comunitario y voluntad de autogobierno.</p> <li>La continuidad de esa preferencia depende de la capacidad del alcalde de responder a demandas locales concretas. Si lo logra, el municipio seguirá apostando por lo local; de lo contrario, podrían abrirse espacios para otras opciones políticas.</li>
+`,
+"Puerto Quijarro":`
+<p>Municipio fronterizo y de tránsito su economía está ligada al comercio internacional, transporte y logística. En 2021 ganó como alcalde Leonardo Luis Chamby Montoya por MAS-IPSP, lo que sugiere que la población apostó por la continuidad estatal, esperando inversiones en infraestructura y facilidades para el comercio fronterizo. La elección refleja una visión pragmática del electorado: estabilidad, apoyo estatal y servicios vinculados al comercio exterior.</p> <li>Para la oposición, la tarea será difícil: necesita una propuesta de modernización logística atractiva y realista, especialmente orientada al desarrollo fronterizo, para competir con ventaja.</li>
+`,
+"El Carmen Rivero Tórrez":`
+<p>Municipio pequeño del pantanal cruceño, con economía basada en agropecuaria y comercio menor. En 2021 resultó electa alcaldesa Celvy Orellana Costa por la agrupación Unidos, lo que demuestra una preferencia por liderazgos locales independientes del bipartidismo tradicional. Esto evidencia que en municipios alejados, con necesidades específicas, la población prioriza propuestas territoriales y cercanía comunitaria.</p> <li>Si este liderazgo logra consolidar proyectos concretos — infraestructura, servicios básicos, apoyo productivo — es probable que mantenga la confianza ciudadana. Si no, la estructura estatal del MAS podría presentar competencia fuerte.</li>
+`, 
+"San Matías":`
+<p>Municipio fronterizo del este cruceño, con economía ganadera, agrícola y comercio transfronterizo. En 2021 fue elegido como alcalde Denny Carlos Velarde Villarroel, por la agrupación MATICO — reflejo de una preferencia local por agrupaciones propias que entienden las dinámicas fronterizas, rurales y comunitarias más allá de la política nacional. La elección pone en evidencia la importancia del localismo y de las identidades propias en zonas periféricas y rurales.</p> <li>La continuidad dependerá de la capacidad del alcalde para responder a demandas fronterizas y productivas. Una gestión efectiva consolidará la confianza; si falla, podrían abrirse espacios para el oficialismo u otras agrupaciones.</li>
+`,  
+"Lagunillas":`
+<p>Municipio rural de la provincia Cordillera, con una población dispersa, marcada por actividades agropecuarias y una identidad local tradicional. En 2021 resultó electo alcalde Héctor Contreras Álvarez, por la agrupación local ASIP — una señal clara de que Lagunillas apuesta por liderazgos propios, con arraigo comunitario, en lugar de depender de partidos nacionales. La elección refleja una preferencia del electorado por autonomía municipal, gestión más cercana y decisiones locales adaptadas a las realidades rurales.</p> <li>En los próximos comicios, la clave estará en la capacidad del alcalde actual de consolidar sus promesas de desarrollo rural. Si logra mantener el respaldo comunitario, ASIP seguirá siendo competitivo. Si fracasa en atender necesidades, podría abrirse espacio a partidos nacionales con estructura más amplia.</li>
+`,
+"Gutiérrez":`
+<p>Municipio indígena/indígena-originario (o con fuerte presencia de comunidades originarias), parte de la diversidad del departamento. En 2021 figura como gobernante local la autoridad elegida de su estructura autonómica/indígena — lo que refleja la vigencia y relevancia de sus organizaciones tradicionales, propias de su contexto cultural. Este patrón indica que en territorios con identidad indígena, el liderazgo comunitario prevalece sobre las dinámicas de partidos nacionales.</p> <li>Para futuras elecciones, es probable que la población continúe apostando por representantes legítimos de su comunidad. Candidaturas externas tendrían que demostrar profundo conocimiento cultural y respeto comunitario para ser competitivas.</li>
+`,
+"Cabezas":`
+<p>Municipio del Chaco / norte-cruceño con base agropecuaria, sensible a las políticas de desarrollo rural, agua, infraestructura y servicios básicos. En 2021 fue electo alcalde Omar Rosales Garzón por el partido oficialista MAS‑IPSP, lo que sugiere que el electorado confió en la promesa de acceso estatal a servicios e inversiones para el desarrollo productivo. Esto refleja que en municipios con necesidades rurales el oficialismo tiene una ventaja estructural al ofrecer programas y subsidios del Estado.</p> <li>Si la gestión responde con obras e inversión real, MAS puede consolidar su posición. Si no, un bloque opositor o local con propuesta de desarrollo agrícola sostenible podría disputar la alcaldía seriamente.</li>
+`,
+"Cuevo":`
+<p>Municipio rural con población dispersa y dinámica típica del Chaco cruceño. En 2021 resultó electo alcalde Marcelo Villagra Quispe por el partido Demócratas, lo que evidencia que en Cuevo existe una inclinación por liderazgos que representan una alternativa al bipartidismo tradicional — quizá con énfasis en autonomía local, gestión descentralizada y respuesta independiente a las necesidades del municipio. La elección sugiere una preferencia por propuestas de oposición moderada, independientes del oficialismo dominante en Bolivia.</p> <li>Para mantener ese liderazgo, será clave que la alcaldía atienda con eficiencia requerimientos básicos y genere confianza en comunidades rurales. De no hacerlo, el MAS podría recuperar terreno si presenta un candidato con respaldo estatal.</li>
+`,
+"Boyuibe":`
+<p>Municipio chaqueño / fronterizo en el Chaco cruceño, con una economía basada en la actividad pecuaria, agrícola y una población rural significativa. En 2021 fue elegida alcaldesa Alejandría Vacaflor Flores por MAS-IPSP — lo que indica que el oficialismo logró consolidar su base en zonas rurales donde los programas estatales y subsidios tienen peso considerable. Este resultado refleja que la institucionalidad estatal y las promesas de desarrollo rural siguen siendo un factor decisivo en Boyuibe.</p> <li>La continuidad del MAS dependerá de la capacidad de mantener apoyo rural y dar resultados concretos en servicios. Si la oposición logra articular un bloque cívico o regional con liderazgo local fuerte, podría competir con posibilidades.</li>
+`,
+"Moro Moro":`
+<p>Municipio de la zona de los valles cruceños, con una población reducida y economía basada en agricultura de montaña, ganadería menor y tradición rural. En 2021 fue electo alcalde Jaime Valverde Delgadillo, por el partido oficialista MAS‑IPSP — lo que indica que el electorado de Moro Moro optó por continuidad del vínculo con el Estado, probablemente con la expectativa de recibir apoyo para infraestructura básica, servicios y desarrollo rural. Esto sugiere que el voto en este municipio privilegia las promesas estatales y la seguridad institucional más que liderazgos independientes o regionalistas.</p> <li>En los próximos comicios, el factor decisivo será la capacidad del gobierno municipal para cumplir promesas de desarrollo rural. Si logra mantener respaldo en sectores productivos, MAS parte con ventaja clara; de lo contrario, surgir oportunidades para alguna agrupación local o de oposición.</li>
+`,
+"Postrer Valle":`
+<p>Municipio pequeño de la provincia de los Valles, con economía agrícola, quizás vitivinícola o de montaña, con base rural y urbana dispersa. En 2021 resultó electo alcalde Roberto Andrade Limón, por el partido Demócratas — señal de preferencia local por una opción de oposición al oficialismo nacional, probablemente respaldada por sectores que buscan mayor descentralización y autonomía municipal. Este resultado muestra un electorado dispuesto a apostar por alternativas distintas al MAS, cuando se confía en un liderazgo local concreto.</p> <li>Para futuras elecciones, la consolidación de esa opción dependerá de la credibilidad de la gestión municipal. Si Andrade mantiene apoyo comunitario y responde a demandas locales, Demócratas puede retener el municipio; de lo contrario, la dispersión del voto podría permitir una recuperación del oficialismo.</li>
+`,
+"Pucará":`
+<p>Municipio del valle, de pequeña escala poblacional y económicamente centrado en agricultura tradicional. En 2021 fue elegido alcalde Ovidio Terrazas Rojas, también por MAS-IPSP — lo que confirma que en zonas rurales como Pucará, el oficialismo mantiene un perfil competitivo, basado en su vínculo con comunidades agrícolas y promesas de desarrollo rural. La elección evidencia que, en este contexto, la sigla oficial tiene un peso real, posiblemente mayor que liderazgos independientes, por la expectativa de apoyo estatal.</p> <li>El reto para la oposición será presentar una alternativa con fuerte arraigo local y propuesta concreta de desarrollo agrícola/comunitario. De lo contrario, el MAS seguirá con ventaja estructural.</li>
+`,
+"San Carlos":`
+<p>Municipio del norte cruceño, con población mixta rural-urbana y economía posiblemente vinculada a agricultura y pequeños comercios. En 2021 resultó electo alcalde Oscar Cinko Yapu, por MAS-IPSP — lo que indica que incluso en municipios no tan pequeños, la estructura estatal del oficialismo tiene capacidad de movilización electoral, seguramente apoyada por beneficios sociales o promesas de inversión regional. Esto refleja una tendencia a confiar en el Estado como motor de desarrollo local.</p> <li>Si los resultados de gestión son visibles — servicios, infraestructura, proyectos productivos — MAS podría consolidar su dominio. Si no, podría abrirse espacio para agrupaciones locales o regionales.</li>
+`,
+"San Miguel de Velasco":`
+<p>Importante municipio de la Chiquitanía, con economía ligada al comercio, agricultura, quizá turismo y desarrollo regional. En 2021 ganó la alcaldía Pedro Damián Dorado López, del MAS-IPSP — lo que evidencia que el oficialismo logra imponerse también en localidades con dinamismo económico y diversidad social. La elección sugiere que en contextos de desarrollo regional la población apuesta por la continuidad estatal, quizá en busca de estabilidad, inversiones y proyectos departamentales o nacionales que beneficien al municipio.</p> <li>Para retener su apoyo, el gobierno municipal deberá demostrar resultados concretos en infraestructura, comercio y servicios. Si falla, la polarización local — entre lo estatal y lo autonómico/regional — podría reactivarse.</li>
+`,
+"Trigal":`
+<p>Municipio de los Valles, de población moderada y con base agrícola — un entorno sensible a políticas de riego, desarrollo agropecuario e inversión rural. En 2021 fue electo alcalde Ferddy Sharvel Escobar Revollo, por la fuerza política CREEMOS — lo que demuestra que en Trigal existe una preferencia por una oposición estructurada, probablemente con un perfil regionalista o cruceño, con promesas de autonomía municipal y desarrollo local fuera del casco oficialista. Esto señala un electorado dispuesto a experimentar con alternativas de oposición cuando existe confianza en el candidato.</p> <li>El mantenimiento de ese apoyo dependerá de la gestión: si logra atraer inversiones para riego, infraestructura y desarrollo agropecuario, CREEMOS mantendrá su ventaja; si no, el MAS o una agrupación local podrían revertir el escenario.</li>
+`,
+"Saipina":`
+<p>Municipio de escala pequeña-mediana del valle cruceño, con una economía agrícola o mixta rural-urbana. En 2021 fue elegido alcalde Efraín Garrado Llenes, por MAS-IPSP — lo que indica que en Saipina también el oficialismo logró consolidar su respaldo, apoyándose posiblemente en programas estatales, ayudas sociales o promesas de desarrollo rural. Esto refleja una tendencia del electorado a confiar en la continuidad estatal cuando se trata de municipios con necesidades de infraestructura y servicios básicos.</p> <li>La oposición tendría que presentar un proyecto sólido de desarrollo local y demostrar cercanía comunitaria para competir seriamente con el MAS. De lo contrario, la ventaja oficialista se mantiene.</li>
+`,
+"San Rafael":`
+<p>Municipio de la provincia José Miguel de Velasco, con población mayormente rural, caracterizado por actividades agrarias, comunidades rurales y una estructura electoral sensible a propuestas de desarrollo, infraestructura y presencia estatal. En las elecciones municipales de 2021 resultó electo alcalde Humberto Jorge Vargas Roca, por la alianza CREEMOS — lo que evidencia una opción opositora al oficialismo nacional (MAS‑IPSP), reflejando la voluntad de los habitantes de San Rafael de apostar por un cambio municipal con enfoque local y autónomo. El triunfo de Vargas Roca puede interpretarse como la expresión de un electorado rural que prioriza liderazgo propio, autonomía municipal y gestión independiente sobre la dependencia del Estado central.</p> <li>Para las próximas elecciones, la clave estará en la consolidación de esa confianza: si CREEMOS y el alcalde actual logran resultados concretos en infraestructura, servicios básicos y desarrollo local, mantendrán una ventaja clara. Si no logran cumplir expectativas, podría abrirse espacio para un retorno del MAS, especialmente si presenta un candidato con fuerte arraigo rural o comunitario.</li>
+`,
+};
+// ============================================================
+// MAPA
+// ============================================================
+
+var map = L.map('map').setView([-17.8, -63.2], 7);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18
+}).addTo(map);
+
+function getColor(partido) {
+    const colores = {
+        "STP": "#7CFF7C",
+        "MAS-IPSP": "#0B3D91",
+        "CREEMOS": "#C77DFF",
+        "DEMOCRATAS": "#0A7A3C",
+        "SOL": "#FF8C00",
+        "MNR": "#FF66CC",
+        "UCS": "#A3E4FF",
+        "COMUNIDAD CIUDADANA": "#FFB347",
+        "MTS": "#C6A67F",
+        "ASIP": "#AEE6FF",
+        "OTROS": "#FFFFFF"
+    };
+    return colores[partido] || "#FF7777";
+}
+
+function actualizarPanel(nombre) {
+    const cont = document.getElementById("info-municipio");
+
+    if (!datos2021[nombre]) {
+        cont.innerHTML = `<h3>${nombre}</h3><p>Sin datos.</p>`;
+        return;
+    }
+
+    let datos = datos2021[nombre];
+    let html = `<h3>${nombre}</h3><ul>`;
+    for (let p in datos) {
+        html += `<li><strong>${p}</strong>: ${datos[p]}%</li>`;
+    }
+    html += `</ul>`;
+    cont.innerHTML = html;
+}
+
+function agregarMunicipio(nombre) {
+    const li = document.createElement("li");
+    li.textContent = nombre;
+    li.onclick = () => {
+        capa.eachLayer(layer => {
+            if (layer.feature.properties.name_3 === nombre) {
+                map.fitBounds(layer.getBounds());
+                abrirModal(nombre);
+            }
+        });
+    };
+    document.getElementById("lista-munis").appendChild(li);
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+
+function abrirModal(nombre) {
+    document.getElementById("modalTitulo").innerText = nombre;
+    document.getElementById("modalTexto").innerHTML =
+        analisisMunicipios[nombre] || "<p>No hay análisis disponible.</p>";
+
+    document.getElementById("modalAnalisis").classList.add("mostrar");
+}
+
+document.getElementById("cerrarModal").onclick = () =>
+    document.getElementById("modalAnalisis").classList.remove("mostrar");
+
+// ============================================================
+// GEOJSON
+// ============================================================
+
+var capa;
+
+function cargarMapa() {
+    fetch("santacruz.geojson")
+        .then(r => r.json())
+        .then(geo => {
+            capa = L.geoJson(geo, {
+                style: function (feature) {
+                    let nombre = feature.properties.name_3;
+
+                    if (!datos2021[nombre]) {
+                        return { color: "#333", weight: 1, fillOpacity: 0.5, fillColor: "#ccc" };
+                    }
+
+                    let votos = datos2021[nombre];
+                    let ganador = null;
+                    let max = 0;
+
+                    for (let p in votos) {
+                        if (votos[p] > max) {
+                            max = votos[p];
+                            ganador = p;
+                        }
+                    }
+
+                    return {
+                        color: "#000",
+                        weight: 1,
+                        fillOpacity: 0.85,
+                        fillColor: getColor(ganador)
+                    };
+                },
+
+                onEachFeature: function (feature, layer) {
+                    const nombre = feature.properties.name_3;
+
+                    layer.on("click", function () {
+                        actualizarPanel(nombre);
+                        abrirModal(nombre);
+                    });
+
+                    agregarMunicipio(nombre);
+                }
+
+            }).addTo(map);
+        });
+}
+
+// Carga inicial del mapa
+cargarMapa();
+
+// ============================================================
+// FUNCION PARA REFRESCAR COLORES
+// ============================================================
+
+function refrescarMapa() {
+    if (capa) {
+        map.removeLayer(capa);
+    }
+    cargarMapa();
+}
+
+</script>
+
+<footer style="
+    width: 100%;
+    text-align: center;
+    padding: 12px;
+    background: #0b910b;
+    color: white;
+    font-size: 16px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 2000;
+">
+    Desarrollado por: <b>Marco Antonio Moreno Huacatiti</b>
+</footer>
+
+</body>
+</html>
